@@ -1,6 +1,5 @@
 # motor_control.py
 from gpiozero import Motor
-from time import sleep
 
 class MotorDriver:
     def __init__(self, left_pins, right_pins):
