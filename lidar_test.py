@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-from rplidar import RPLidar
+"""
+Improved LiDAR Test Script
+Uses LidarHandler for better buffer management
+"""
+
+from lidar_handler import LidarHandler
 import matplotlib.pyplot as plt
 import numpy as np
 import signal
-import sys
 import time
 
 # ==== CONFIG ====
 PORT_NAME = '/dev/ttyUSB0'
-MAX_BUF = 2000     # Larger buffer to avoid overflow
-PWM_SPEED = 500    # Optional: reduce spin speed (300–600 recommended)
-SHOW_PLOT = True   # Set False if you only want text output
+PWM_SPEED = 500
+MAX_BUF = 3600     # Increased buffer size
+SHOW_PLOT = True
 # =================
 
 running = True
@@ -22,45 +26,51 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-print("Starting LiDAR... Press Ctrl+C to stop")
+print("Starting LiDAR with improved buffer handling...")
+print("Press Ctrl+C to stop")
 
-# Initialize LiDAR
-lidar = RPLidar(PORT_NAME)
-lidar._set_pwm(PWM_SPEED)
-time.sleep(1)  # give time to spin up
+# Initialize LiDAR handler
+lidar = LidarHandler(port=PORT_NAME, pwm_speed=PWM_SPEED, max_buffer=MAX_BUF)
+lidar.start()
 
 # Optional live plot
 if SHOW_PLOT:
     plt.ion()
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='polar')
     scan_plot, = ax.plot([], [], 'g.', markersize=2)
     ax.set_rmax(4000)
     ax.grid(True)
-    ax.set_title("RPLidar A1 - Live Scan", va='bottom')
+    ax.set_title("RPLidar A1 - Live Scan (Improved Buffer)", va='bottom')
 
 try:
-    for i, scan in enumerate(lidar.iter_scans(max_buf_meas=MAX_BUF)):
-        distances = [d for (_, _, d) in scan]
-        angles = [np.deg2rad(a) for (_, a, _) in scan]
-        print(f"Scan {i}: {len(scan)} points")
+    scan_count = 0
+    while running:
+        scan = lidar.get_latest_scan()
+        
+        if scan is not None and scan['count'] > 0:
+            distances = scan['distances']
+            angles = scan['angles']
+            
+            print(f"Scan {scan_count}: {scan['count']} points | "
+                  f"Min: {np.min(distances):.0f} mm | "
+                  f"Max: {np.max(distances):.0f} mm")
 
-        if SHOW_PLOT:
-            scan_plot.set_data(angles, distances)
-            plt.pause(0.001)
-
-        if not running:
-            break
+            if SHOW_PLOT:
+                angles_rad = np.deg2rad(angles)
+                scan_plot.set_data(angles_rad, distances)
+                plt.pause(0.01)
+            
+            scan_count += 1
+        
+        time.sleep(0.1)
 
 except Exception as e:
-    print("Error:", e)
+    print(f"Error: {e}")
+    import traceback
+    traceback.print_exc()
 
 finally:
-    print("Stopping motor and disconnecting LiDAR...")
-    try:
-        lidar.stop()
-        lidar.stop_motor()
-        lidar.disconnect()
-    except:
-        pass
+    print("Stopping LiDAR...")
+    lidar.stop()
     print("LiDAR stopped cleanly.")
