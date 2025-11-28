@@ -28,6 +28,7 @@ class AutonomousSlamRobot:
             - lidar_pwm: PWM speed for LiDAR (default: 500)
             - left_pins: Left motor pins (default: (17, 22, 25))
             - right_pins: Right motor pins (default: (23, 24, 5))
+            - mock_motors: Use mock motors (no GPIO) (default: None, auto-detect)
             - map_size: SLAM map size (default: 800)
             - map_resolution: Map resolution in m/pixel (default: 0.05)
             - obstacle_threshold: Distance threshold in mm (default: 400)
@@ -42,6 +43,7 @@ class AutonomousSlamRobot:
         self.lidar_pwm = config.get('lidar_pwm', 500)
         self.left_pins = config.get('left_pins', (17, 22, 25))
         self.right_pins = config.get('right_pins', (23, 24, 5))
+        self.mock_motors = config.get('mock_motors', None)
         self.map_size = config.get('map_size', 800)
         self.map_resolution = config.get('map_resolution', 0.05)
         self.obstacle_threshold = config.get('obstacle_threshold', 400)
@@ -76,7 +78,7 @@ class AutonomousSlamRobot:
         
         # Initialize motors
         print("Initializing motors...")
-        self.motors = MotorDriver(self.left_pins, self.right_pins)
+        self.motors = MotorDriver(self.left_pins, self.right_pins, mock_mode=self.mock_motors)
         time.sleep(0.5)
         
         # Initialize SLAM
